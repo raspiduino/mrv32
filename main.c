@@ -44,7 +44,7 @@ unsigned int last_wr_addr = 0, last_rd_addr = 0;
 unsigned long cycles;
 
 // mini-rv32ima global variables
-uint32_t RAM_SIZE = 12 * 1024 * 1024; // Set default RAM amount to 12MB (miniumum RAM tested for booting, you may increase)
+const VMUINT32 RAM_SIZE = 12582912; // Minimum RAM amount (in bytes), just tested (may reduce further by custom kernel)
 int fail_on_all_faults = 0;
 uint64_t lastTime = 0;
 
@@ -137,7 +137,7 @@ static uint8_t load1(uint32_t ofs);
 // After all macros have been overwritten, now include the header
 #include "mini-rv32ima.h"
 
-struct MiniRV32IMAState core; // core struct
+struct MiniRV32IMAState *core; // core struct
 
 // Main MRE entry point
 void vm_main(void){
@@ -167,7 +167,7 @@ void draw(){
 void socRun(int tid){
 	if (vmstate == 1) {
 		// Emulator cycle
-		uint64_t* this_ccount = ((uint64_t*)&core.cyclel);
+		uint64_t* this_ccount = ((uint64_t*)&core->cyclel);
 		uint32_t elapsedUs = 0;
 		elapsedUs = *this_ccount / TIME_DIVISOR - lastTime;
 		cycles = *this_ccount; // For calculating the emulated speed
@@ -239,6 +239,11 @@ static uint8_t store1(uint32_t ofs, uint8_t val) {
 
 static uint32_t load4(uint32_t ofs) {
 	last_rd_addr = ofs;
+
+	if (ofs == 0xB8) {
+		return 0xFEE6DCE3;
+	}
+	
 	vm_file_seek_opt(vram, ofs, BASE_BEGIN);
 
 	uint32_t result;
@@ -302,13 +307,13 @@ void handle_sysevt(VMINT message, VMINT param) {
 				VM_TRUE);                  // Open in binary mode
 
 			// Allocate space for core struct
-			memset(&core, 0, sizeof(struct MiniRV32IMAState));
+			core = (struct MiniRV32IMAState *)vm_calloc(sizeof(struct MiniRV32IMAState));
 
 			// Setup core
-			core.pc = MINIRV32_RAM_IMAGE_OFFSET;
-			core.regs[10] = 0x00; //hart ID
-			core.regs[11] = RAM_SIZE - sizeof(struct MiniRV32IMAState) - DTB_SIZE + MINIRV32_RAM_IMAGE_OFFSET; // dtb_pa (Must be valid pointer) (Should be pointer to dtb)
-			core.extraflags |= 3; // Machine-mode.
+			core->pc = MINIRV32_RAM_IMAGE_OFFSET;
+			core->regs[10] = 0x00; //hart ID
+			core->regs[11] = RAM_SIZE - sizeof(struct MiniRV32IMAState) - DTB_SIZE + MINIRV32_RAM_IMAGE_OFFSET; // dtb_pa (Must be valid pointer) (Should be pointer to dtb)
+			core->extraflags |= 3; // Machine-mode.
 		}
 
 		if(soc_cycle_timer_id == -1)

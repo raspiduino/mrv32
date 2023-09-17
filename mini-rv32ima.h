@@ -96,16 +96,16 @@ struct MiniRV32IMAState
 	uint32_t extraflags;
 };
 
-MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState state, uint8_t * image, uint32_t vProcAddress, uint32_t elapsedUs, int count );
+MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState *state, uint8_t * image, uint32_t vProcAddress, uint32_t elapsedUs, int count );
 
 #ifdef MINIRV32_IMPLEMENTATION
 
-#define CSR( x ) state.x
-#define SETCSR( x, val ) { state.x = val; }
-#define REG( x ) state.regs[x]
-#define REGSET( x, val ) { state.regs[x] = val; }
+#define CSR( x ) state->x
+#define SETCSR( x, val ) { state->x = val; }
+#define REG( x ) state->regs[x]
+#define REGSET( x, val ) { state->regs[x] = val; }
 
-MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState state, uint8_t * image, uint32_t vProcAddress, uint32_t elapsedUs, int count )
+MINIRV32_DECORATE int32_t MiniRV32IMAStep( struct MiniRV32IMAState *state, uint8_t * image, uint32_t vProcAddress, uint32_t elapsedUs, int count )
 {
 	uint32_t new_timer = CSR( timerl ) + elapsedUs;
 	if( new_timer < CSR( timerl ) ) CSR( timerh )++;

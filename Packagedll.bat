@@ -1,4 +1,4 @@
-"C:\Program Files (x86)\MRE SDK V3.0.00\tools\DllPackage.exe" "D:\Data\dev\mrv32\mrv32.vcproj"
+"C:\MRE_SDK\tools\DllPackage.exe" "C:\Users\mmb\dev\mrv32\mrv32.vcproj"
 if %errorlevel% == 0 (
  echo postbuild OK.
   copy mrv32.vpp ..\..\..\MoDIS_VC9\WIN32FS\DRIVE_E\mrv32.vpp /y
