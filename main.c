@@ -45,8 +45,8 @@ unsigned long cycles;
 
 // mini-rv32ima global variables
 const VMUINT32 RAM_SIZE = 12582912; // Minimum RAM amount (in bytes), just tested (may reduce further by custom kernel)
-int fail_on_all_faults = 0;
 uint64_t lastTime = 0;
+int fail_on_all_faults = 0;
 
 // vmstate values:
 // -1: on startup
@@ -101,19 +101,19 @@ void handle_keyevt(VMINT event, VMINT keycode);
 void handle_penevt(VMINT event, VMINT x, VMINT y);
 
 // mini-rv32ima helper functions
-static uint32_t HandleException(uint32_t ir, uint32_t retval);
-static uint32_t HandleControlStore(uint32_t addy, uint32_t val);
-static uint32_t HandleControlLoad(uint32_t addy);
-static void HandleOtherCSRWrite(uint8_t* image, uint16_t csrno, uint32_t value);
+static VMUINT32 HandleException(VMUINT32 ir, VMUINT32 retval);
+static VMUINT32 HandleControlStore(VMUINT32 addy, VMUINT32 val);
+static VMUINT32 HandleControlLoad(VMUINT32 addy);
+static void HandleOtherCSRWrite(VMUINT8* image, VMUINT16 csrno, VMUINT32 value);
 
 // Load / store helper
-static uint32_t store4(uint32_t ofs, uint32_t val);
-static uint16_t store2(uint32_t ofs, uint16_t val);
-static uint8_t store1(uint32_t ofs, uint8_t val);
+static VMUINT32 store4(VMUINT32 ofs, VMUINT32 val);
+static VMUINT16 store2(VMUINT32 ofs, VMUINT16 val);
+static VMUINT8 store1(VMUINT32 ofs, VMUINT8 val);
 
-static uint32_t load4(uint32_t ofs);
-static uint16_t load2(uint32_t ofs);
-static uint8_t load1(uint32_t ofs);
+static VMUINT32 load4(VMUINT32 ofs);
+static VMUINT16 load2(VMUINT32 ofs);
+static VMUINT8 load1(VMUINT32 ofs);
 
 // This is the functionality we want to override in the emulator.
 //  think of this as the way the emulator's processor is connected to the outside world.
@@ -131,7 +131,9 @@ static uint8_t load1(uint32_t ofs);
 #define MINIRV32_STORE2( ofs, val ) store2(ofs, val)
 #define MINIRV32_STORE1( ofs, val ) store1(ofs, val)
 #define MINIRV32_LOAD4( ofs ) load4(ofs)
+#define MINIRV32_LOAD2_SIGNED( ofs ) (VMINT16)load2(ofs)
 #define MINIRV32_LOAD2( ofs ) load2(ofs)
+#define MINIRV32_LOAD1_SIGNED( ofs ) (VMINT8)load1(ofs)
 #define MINIRV32_LOAD1( ofs ) load1(ofs)
 
 // After all macros have been overwritten, now include the header
@@ -168,7 +170,7 @@ void socRun(int tid){
 	if (vmstate == 1) {
 		// Emulator cycle
 		uint64_t* this_ccount = ((uint64_t*)&core->cyclel);
-		uint32_t elapsedUs = 0;
+		VMUINT32 elapsedUs = 0;
 		elapsedUs = *this_ccount / TIME_DIVISOR - lastTime;
 		cycles = *this_ccount; // For calculating the emulated speed
 		lastTime += elapsedUs;
@@ -188,12 +190,38 @@ void socRun(int tid){
 
 // Save emulator's state
 void save_state() {
-	// Do nothing for now
+	VMUINT n;	   // Required for read/write apis, but useless
+
+	// Open state file
+	VMWCHAR state_path[100];
+	vm_gb2312_to_ucs2(state_path, 1000, "e:\\rv32ima\\state.bin");
+	VMFILE sf = vm_file_open(state_path, // State load/save file
+		MODE_CREATE_ALWAYS_WRITE,		 // Create a new file and open it in read/write mode
+		VM_TRUE);						 // Open in binary mode
+
+	vm_file_write_opt(sf, (char*)core, sizeof(struct MiniRV32IMAState), &n);
+	vm_file_write_opt(sf, (char*)&lastTime, sizeof(lastTime), &n);
+
+	// Close file
+	vm_file_close(sf);
 }
 
 // Load state only, not RAM
 void load_man() {
-	// Do nothing for now
+	VMWCHAR state_path[100];
+	VMUINT n; // Required for read/write apis, but useless
+	vm_gb2312_to_ucs2(state_path, 1000, "e:\\rv32ima\\state.bin");
+	VMFILE sf = vm_file_open(state_path, // State load/save file
+		MODE_APPEND,					 // Open in append mode
+		VM_TRUE);						 // Open in binary mode
+
+	// Load SoC struct
+	vm_file_seek_opt(sf, 0, BASE_BEGIN); // Move cusor to the top
+	vm_file_read_opt(sf, (char*)core, sizeof(struct MiniRV32IMAState), &n);
+	vm_file_read_opt(sf, (char*)&lastTime, sizeof(lastTime), &n);
+
+	// Close file
+	vm_file_close(sf);
 }
 
 // Load emulator's state
@@ -207,37 +235,37 @@ void timer(int tid) {
 }
 
 // Load / store helper
-static uint32_t store4(uint32_t ofs, uint32_t val) {
+static VMUINT32 store4(VMUINT32 ofs, VMUINT32 val) {
 	last_wr_addr = ofs;
 	vm_file_seek_opt(vram, ofs, BASE_BEGIN);
 
-	uint32_t r = val;
+	VMUINT32 r = val;
 	VMUINT w;
 
-	vm_file_write_opt(vram, ((uint8_t*)&r), 4, &w);
+	vm_file_write_opt(vram, ((VMUINT8*)&r), 4, &w);
 }
 
-static uint16_t store2(uint32_t ofs, uint16_t val) {
+static VMUINT16 store2(VMUINT32 ofs, VMUINT16 val) {
 	last_wr_addr = ofs;
 	vm_file_seek_opt(vram, ofs, BASE_BEGIN);
 
-	uint16_t r = val;
+	VMUINT16 r = val;
 	VMUINT w;
 
-	vm_file_write_opt(vram, ((uint8_t*)&r), 2, &w);
+	vm_file_write_opt(vram, ((VMUINT8*)&r), 2, &w);
 }
 
-static uint8_t store1(uint32_t ofs, uint8_t val) {
+static VMUINT8 store1(VMUINT32 ofs, VMUINT8 val) {
 	last_wr_addr = ofs;
 	vm_file_seek_opt(vram, ofs, BASE_BEGIN);
 
-	uint8_t r = val;
+	VMUINT8 r = val;
 	VMUINT w;
 
-	vm_file_write_opt(vram, ((uint8_t*)&r), 1, &w);
+	vm_file_write_opt(vram, ((VMUINT8*)&r), 1, &w);
 }
 
-static uint32_t load4(uint32_t ofs) {
+static VMUINT32 load4(VMUINT32 ofs) {
 	last_rd_addr = ofs;
 
 	if (ofs == 0xB8) {
@@ -246,32 +274,32 @@ static uint32_t load4(uint32_t ofs) {
 	
 	vm_file_seek_opt(vram, ofs, BASE_BEGIN);
 
-	uint32_t result;
+	VMUINT32 result;
 	VMUINT r;
 
-	vm_file_read_opt(vram, ((uint8_t*)&result), 4, &r);
+	vm_file_read_opt(vram, ((VMUINT8*)&result), 4, &r);
 	return result;
 }
 
-static uint16_t load2(uint32_t ofs) {
+static VMUINT16 load2(VMUINT32 ofs) {
 	last_rd_addr = ofs;
 	vm_file_seek_opt(vram, ofs, BASE_BEGIN);
 
-	uint16_t result;
+	VMUINT16 result;
 	VMUINT r;
 
-	vm_file_read_opt(vram, ((uint8_t*)&result), 2, &r);
+	vm_file_read_opt(vram, ((VMUINT8*)&result), 2, &r);
 	return result;
 }
 
-static uint8_t load1(uint32_t ofs) {
+static VMUINT8 load1(VMUINT32 ofs) {
 	last_rd_addr = ofs;
 	vm_file_seek_opt(vram, ofs, BASE_BEGIN);
 
-	uint8_t result;
+	VMUINT8 result;
 	VMUINT r;
 
-	vm_file_read_opt(vram, ((uint8_t*)&result), 1, &r);
+	vm_file_read_opt(vram, ((VMUINT8*)&result), 1, &r);
 	return result;
 }
 
@@ -386,7 +414,7 @@ void handle_penevt(VMINT event, VMINT x, VMINT y){
 
 // mini-rv32ima exception handlers
 
-static uint32_t HandleException(uint32_t ir, uint32_t code)
+static VMUINT32 HandleException(VMUINT32 ir, VMUINT32 code)
 {
 	// Weird opcode emitted by duktape on exit.
 	if (code == 3)
@@ -396,7 +424,7 @@ static uint32_t HandleException(uint32_t ir, uint32_t code)
 	return code;
 }
 
-static uint32_t HandleControlStore(uint32_t addy, uint32_t val)
+static VMUINT32 HandleControlStore(VMUINT32 addy, VMUINT32 val)
 {
 	if (addy == 0x10000000) // UART 8250 / 16550 Data Buffer
 	{
@@ -408,7 +436,7 @@ static uint32_t HandleControlStore(uint32_t addy, uint32_t val)
 }
 
 
-static uint32_t HandleControlLoad(uint32_t addy)
+static VMUINT32 HandleControlLoad(VMUINT32 addy)
 {
 	// Emulating a 8250 / 16550 UART
 
@@ -425,7 +453,7 @@ static uint32_t HandleControlLoad(uint32_t addy)
 	return 0;
 }
 
-static void HandleOtherCSRWrite(uint8_t* image, uint16_t csrno, uint32_t value)
+static void HandleOtherCSRWrite(VMUINT8* image, VMUINT16 csrno, VMUINT32 value)
 {
 	if (csrno == 0x136)
 	{
