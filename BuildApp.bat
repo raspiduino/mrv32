@@ -29,6 +29,6 @@ echo Packing resource to app
 "C:\MRE_SDK\tools\ResEditor\CmdShell.exe" pack -silent -resolution 240x320 -o "C:\Users\mmb\dev\mrv32\mrv32.pkd" -e AXF "C:\Users\mmb\dev\mrv32\mrv32.vcproj" "C:\Users\mmb\dev\mrv32\mrv32.axf"
 if %errorlevel% NEQ 0 goto exit
 echo Adding tag infromation 
-"C:\MRE_SDK\tools\PackDigist.exe" "C:\Users\mmb\dev\mrv32\mrv32.vcproj" "mrv32" "0.1.0" "mrv32 contributors" "3072" "NotSupportBg" "Not Support rotate" "mrv32" "mrv32" "mrv32" "9452019958132054" "content" " TCP Sensor SMS(person) BitStream Contact MMS SMSMng File" "vxp" "GCC" "PKD" "UnCompress" "NoVPI" "Adaptable" "15728960" "UnSysMemAble" "" "-1" "UNPUSH" "-1" ""  "UnAutoStart"  "UnTransferImg" "NoIdleShortcut"  C:\Users\mmb\dev\mrv32\arm C:\Users\mmb\dev\mrv32\build.log
+"C:\MRE_SDK\tools\PackDigist.exe" "C:\Users\mmb\dev\mrv32\mrv32.vcproj" "mrv32" "0.1.0" "mrv32 contributors" "3072" "NotSupportBg" "Not Support rotate" "mrv32" "mrv32" "mrv32" "1234567890" "content" " TCP Sensor SMS(person) BitStream Contact MMS SMSMng File" "vxp" "GCC" "PKD" "UnCompress" "NoVPI" "Adaptable" "15728960" "UnSysMemAble" "" "-1" "UNPUSH" "-1" ""  "UnAutoStart"  "UnTransferImg" "NoIdleShortcut"  C:\Users\mmb\dev\mrv32\arm C:\Users\mmb\dev\mrv32\build.log
 
 :exit
